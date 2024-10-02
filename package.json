@@ -12,13 +12,5 @@
 	},
 	"author": "",
 	"license": "ISC",
-	"description": "A library for handling input devices for games",
-	"dependencies": {
-		"@rollup/plugin-typescript": "^12.1.0",
-		"ts-key-enum": "^3.0.13"
-	},
-	"devDependencies": {
-		"@rollup/plugin-babel": "^6.0.4",
-		"tslib": "^2.7.0"
-	}
+	"description": "A library for handling input devices for games"
 }
