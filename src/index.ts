@@ -137,12 +137,6 @@ export class ControlHandler {
 		window.addEventListener("keyup", this.#keyup.bind(this));
 		window.addEventListener("blur", this.#onBlur.bind(this));
 		window.addEventListener("mousemove", this.#mousemove.bind(this));
-
-		if (this.#focusElement !== null) {
-			const loop = () => {
-				window.requestAnimationFrame(loop);
-			}
-		}
 	}
 
 	#getMousePosition() {
