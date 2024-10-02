@@ -1,0 +1,232 @@
+enum KeyCode {
+	Backspace = "Backspace",
+	Tab = "Tab",
+	Enter = "Enter",
+	ShiftLeft = "ShiftLeft",
+	ShiftRight = "ShiftRight",
+	ControlLeft = "ControlLeft",
+	ControlRight = "ControlRight",
+	AltLeft = "AltLeft",
+	AltRight = "AltRight",
+	Pause = "Pause",
+	CapsLock = "CapsLock",
+	Escape = "Escape",
+	Space = "Space",
+	PageUp = "PageUp",
+	PageDown = "PageDown",
+	End = "End",
+	Home = "Home",
+	ArrowLeft = "ArrowLeft",
+	ArrowUp = "ArrowUp",
+	ArrowRight = "ArrowRight",
+	ArrowDown = "ArrowDown",
+	PrintScreen = "PrintScreen",
+	Insert = "Insert",
+	Delete = "Delete",
+	Digit0 = "Digit0",
+	Digit1 = "Digit1",
+	Digit2 = "Digit2",
+	Digit3 = "Digit3",
+	Digit4 = "Digit4",
+	Digit5 = "Digit5",
+	Digit6 = "Digit6",
+	Digit7 = "Digit7",
+	Digit8 = "Digit8",
+	Digit9 = "Digit9",
+	KeyA = "KeyA",
+	KeyB = "KeyB",
+	KeyC = "KeyC",
+	KeyD = "KeyD",
+	KeyE = "KeyE",
+	KeyF = "KeyF",
+	KeyG = "KeyG",
+	KeyH = "KeyH",
+	KeyI = "KeyI",
+	KeyJ = "KeyJ",
+	KeyK = "KeyK",
+	KeyL = "KeyL",
+	KeyM = "KeyM",
+	KeyN = "KeyN",
+	KeyO = "KeyO",
+	KeyP = "KeyP",
+	KeyQ = "KeyQ",
+	KeyR = "KeyR",
+	KeyS = "KeyS",
+	KeyT = "KeyT",
+	KeyU = "KeyU",
+	KeyV = "KeyV",
+	KeyW = "KeyW",
+	KeyX = "KeyX",
+	KeyY = "KeyY",
+	KeyZ = "KeyZ",
+	MetaLeft = "MetaLeft",
+	MetaRight = "MetaRight",
+	Numpad0 = "Numpad0",
+	Numpad1 = "Numpad1",
+	Numpad2 = "Numpad2",
+	Numpad3 = "Numpad3",
+	Numpad4 = "Numpad4",
+	Numpad5 = "Numpad5",
+	Numpad6 = "Numpad6",
+	Numpad7 = "Numpad7",
+	Numpad8 = "Numpad8",
+	Numpad9 = "Numpad9",
+	NumpadMultiply = "NumpadMultiply",
+	NumpadAdd = "NumpadAdd",
+	NumpadSubtract = "NumpadSubtract",
+	NumpadDecimal = "NumpadDecimal",
+	NumpadDivide = "NumpadDivide",
+	F1 = "F1",
+	F2 = "F2",
+	F3 = "F3",
+	F4 = "F4",
+	F5 = "F5",
+	F6 = "F6",
+	F7 = "F7",
+	F8 = "F8",
+	F9 = "F9",
+	F10 = "F10",
+	F11 = "F11",
+	F12 = "F12",
+	NumLock = "NumLock",
+	ScrollLock = "ScrollLock",
+	Semicolon = "Semicolon",
+	Equal = "Equal",
+	Comma = "Comma",
+	Minus = "Minus",
+	Period = "Period",
+	Slash = "Slash",
+	Backquote = "Backquote",
+	BracketLeft = "BracketLeft",
+	Backslash = "Backslash",
+	BracketRight = "BracketRight",
+	Quote = "Quote",
+}
+
+type KeyCodeStr = `${KeyCode}`;
+
+interface MappingData {
+	keysPressed: Set<KeyCodeStr>, 
+	isKeyPressed: (key: KeyCodeStr) => boolean,
+	mouseX: number | null,
+	mouseY: number | null,
+}
+
+export class ControlHandler {
+
+	// stores boolean values for the keys pressed
+	#keyStates = new Map<KeyCodeStr, boolean>();
+
+	// stores set of keycodes of buttons pressed currently
+	#keysPressed = new Set<KeyCodeStr>();
+
+	// stores methods/function that are used to retrieve translated control data
+	#controlStates = new Map<string, (data: MappingData) => boolean | number>();
+
+	#focusElement: HTMLElement | null;
+
+	// definitive mouse position relative to window
+	#mouseX: number | null = null;
+	#mouseY: number | null = null;
+
+	constructor(focusElement: HTMLElement | null = null) {
+
+		this.#focusElement = focusElement;
+
+		window.addEventListener("keydown", this.#keydown.bind(this));
+		window.addEventListener("keyup", this.#keyup.bind(this));
+		window.addEventListener("blur", this.#onBlur.bind(this));
+		window.addEventListener("mousemove", this.#mousemove.bind(this));
+
+		if (this.#focusElement !== null) {
+			const loop = () => {
+				window.requestAnimationFrame(loop);
+			}
+		}
+	}
+
+	#getMousePosition() {
+		if (
+			this.#focusElement === null || 
+			this.#mouseX === null || 
+			this.#mouseY === null
+		) return {mouseX: this.#mouseX, mouseY: this.#mouseY};
+		const rect = this.#focusElement.getBoundingClientRect();
+
+		const pos = {
+			mouseX: this.#mouseX - rect.x, mouseY: this.#mouseY - rect.y
+		};
+
+		if (
+			pos.mouseX < 0 || pos.mouseX > rect.width ||
+			pos.mouseY < 0 || pos.mouseY > rect.height
+		) {
+			return {mouseX: null, mouseY: null};
+		}
+
+		if (this.#focusElement instanceof HTMLCanvasElement) {
+			pos.mouseX *= this.#focusElement.width / rect.width;	
+			pos.mouseY *= this.#focusElement.height / rect.height;	
+		}
+
+		return pos;
+	}
+
+	#keydown(event: KeyboardEvent) {
+		const code = event.code as KeyCodeStr;
+		this.#keyStates.set(code, true);
+		this.#keysPressed.add(code);
+	}
+
+	#keyup(event: KeyboardEvent) {
+		const code = event.code as KeyCodeStr;
+		this.#keyStates.set(code, false);
+		this.#keysPressed.delete(code);
+	}
+
+	// Unsetting keyboard events when user tabs away from window
+	#onBlur() {
+		this.#keyStates.forEach((pressed, key) => {
+			this.#keyStates.set(key, false);
+			this.#keysPressed.clear();
+		});
+		this.#mouseX = null;
+		this.#mouseY = null;
+	}
+
+	#mousemove(event: MouseEvent) {
+		if (this.#focusElement === null) {
+			this.#mouseX = event.clientX;
+			this.#mouseY = event.clientY;
+			return;
+		}
+
+		this.#mouseX = event.clientX;
+		this.#mouseY = event.clientY;
+	}
+
+	/**
+	 * Adds a control state with conditional
+	 * */
+	addControlState(name: string, mapping: (data: MappingData) => boolean | number) {
+		this.#controlStates.set(name, mapping);
+	}
+
+	getControlValue(name: string): boolean | number {
+		const mapping = this.#controlStates.get(name);
+		if (mapping === undefined) throw `Cannot access the control "${name}" since it hasn't been defined!`;
+
+		const mousePos = this.#getMousePosition();
+
+		return mapping({
+			keysPressed: this.#keysPressed,
+			isKeyPressed: (key: KeyCodeStr) => {
+				const value = this.#keyStates.get(key);
+				return (value === undefined) ? false : value;
+			},
+			mouseX: mousePos.mouseX,
+			mouseY: mousePos.mouseY,
+		});
+		
+	}
+}

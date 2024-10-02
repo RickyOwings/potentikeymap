@@ -1,0 +1,24 @@
+{
+	"name": "PotentiKeyMap",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"build": "tsc",
+		"buildTests": "tsc --outDir tests/modules/potentikeymap",
+		"watch": "tsc -w",
+		"watchTests": "tsc -w --outDir tests/modules/potentikeymap",
+		"tests": "serve tests",
+		"dev": "npm-run-all --parallel watch watchTests tests"
+	},
+	"author": "",
+	"license": "ISC",
+	"description": "A library for handling input devices for games",
+	"dependencies": {
+		"@rollup/plugin-typescript": "^12.1.0",
+		"ts-key-enum": "^3.0.13"
+	},
+	"devDependencies": {
+		"@rollup/plugin-babel": "^6.0.4",
+		"tslib": "^2.7.0"
+	}
+}

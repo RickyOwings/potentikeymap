@@ -1,0 +1,5 @@
+import {ControlHandler} from "../modules/potentikeymap/index.js"
+
+const controlHandler = new ControlHandler();
+controlHandler.addControlState("right", "bool");
+
