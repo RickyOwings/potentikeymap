@@ -121,7 +121,7 @@ export class ControlHandler {
 	#keysPressed = new Set<KeyCodeStr>();
 
 	// stores methods/function that are used to retrieve translated control data
-	#controlStates = new Map<string, (data: MappingData) => boolean | number>();
+	#controlStates = new Map<string, (data: MappingData) => boolean | number | number[]>();
 
 	#focusElement: HTMLElement | null;
 
@@ -200,13 +200,18 @@ export class ControlHandler {
 	}
 
 	/**
-	 * Adds a control state with conditional
+	 * Adds a control state, where you provide a handler function that returns either a boolean or number
+	 *
+	 * EX: providing a control state "STRAFE" that determines its value from whether KeyA or KeyD is pressed
 	 * */
-	addControlState(name: string, mapping: (data: MappingData) => boolean | number) {
+	addControlState(name: string, mapping: (data: MappingData) => boolean | number | number[]) {
 		this.#controlStates.set(name, mapping);
 	}
 
-	getControlValue(name: string): boolean | number {
+	/**
+	* Gets the current state of a control state. Control states are created with "addControlState"
+	*/
+	getControlValue(name: string): boolean | number | number[] {
 		const mapping = this.#controlStates.get(name);
 		if (mapping === undefined) throw `Cannot access the control "${name}" since it hasn't been defined!`;
 
