@@ -108,19 +108,38 @@ type KeyCodeStr = `${KeyCode}`;
 interface MappingData {
 	keysPressed: Set<KeyCodeStr>, 
 	isKeyPressed: (key: KeyCodeStr) => boolean,
+	isKeyTapped: (key: KeyCodeStr) => boolean,
+	isKeyReleased: (key: KeyCodeStr) => boolean,
 	mouseX: number | null,
 	mouseY: number | null,
-	mouse0: boolean,
-	mouse1: boolean,
-	mouse2: boolean,
-	mouse3: boolean,
-	mouse4: boolean,
+
+	mouse0Pressed: boolean,
+	mouse1Pressed: boolean,
+	mouse2Pressed: boolean,
+	mouse3Pressed: boolean,
+	mouse4Pressed: boolean,
+
+	mouse0Tapped: boolean,
+	mouse1Tapped: boolean,
+	mouse2Tapped: boolean,
+	mouse3Tapped: boolean,
+	mouse4Tapped: boolean,
+
+	mouse0Released: boolean,
+	mouse1Released: boolean,
+	mouse2Released: boolean,
+	mouse3Released: boolean,
+	mouse4Released: boolean,
+
+
 }
 
 export class ControlHandler {
 
 	// stores boolean values for the keys pressed
-	#keyStates = new Map<KeyCodeStr, boolean>();
+	#keyPressedStates = new Map<KeyCodeStr, boolean>();
+	#keyTappedStates = new Map<KeyCodeStr, boolean>();
+	#keyReleasedStates = new Map<KeyCodeStr, boolean>();
 
 	// stores set of keycodes of buttons pressed currently
 	#keysPressed = new Set<KeyCodeStr>();
@@ -136,11 +155,23 @@ export class ControlHandler {
 	#mouseX: number | null = null;
 	#mouseY: number | null = null;
 
-	#mouse0: boolean = false;
-	#mouse1: boolean = false;
-	#mouse2: boolean = false;
-	#mouse3: boolean = false;
-	#mouse4: boolean = false;
+	#mouse0Pressed: boolean = false;
+	#mouse1Pressed: boolean = false;
+	#mouse2Pressed: boolean = false;
+	#mouse3Pressed: boolean = false;
+	#mouse4Pressed: boolean = false;
+
+	#mouse0Tapped: boolean = false;
+	#mouse1Tapped: boolean = false;
+	#mouse2Tapped: boolean = false;
+	#mouse3Tapped: boolean = false;
+	#mouse4Tapped: boolean = false;
+
+	#mouse0Released: boolean = false;
+	#mouse1Released: boolean = false;
+	#mouse2Released: boolean = false;
+	#mouse3Released: boolean = false;
+	#mouse4Released: boolean = false;
 
 	constructor(focusElement: HTMLElement | null = null) {
 
@@ -183,22 +214,26 @@ export class ControlHandler {
 
 	#keydown(event: KeyboardEvent) {
 		const code = event.code as KeyCodeStr;
-		this.#keyStates.set(code, true);
+		this.#keyPressedStates.set(code, true);
 		this.#keysPressed.add(code);
+
 		this.#keysTapped.add(code);
+		this.#keyTappedStates.set(code, true);
 	}
 
 	#keyup(event: KeyboardEvent) {
 		const code = event.code as KeyCodeStr;
-		this.#keyStates.set(code, false);
+		this.#keyPressedStates.set(code, false);
 		this.#keysPressed.delete(code);
+
 		this.#keysReleased.add(code);
+		this.#keyReleasedStates.set(code, true);
 	}
 
 	// Unsetting keyboard events when user tabs away from window
 	#onBlur() {
-		this.#keyStates.forEach((pressed, key) => {
-			this.#keyStates.set(key, false);
+		this.#keyPressedStates.forEach((pressed, key) => {
+			this.#keyPressedStates.set(key, false);
 			this.#keysPressed.clear();
 		});
 		this.#mouseX = null;
@@ -218,22 +253,53 @@ export class ControlHandler {
 
 	#mouseup(event: MouseEvent) {
 		switch(event.button) {
-			case 0: this.#mouse0 = false; break;
-			case 1: this.#mouse1 = false; break;
-			case 2: this.#mouse2 = false; break;
-			case 3: this.#mouse3 = false; break;
-			case 4: this.#mouse4 = false; break;
+			case 0: { 
+				this.#mouse0Pressed = false;
+				this.#mouse0Released = true;
+			} break;
+			case 1: { 
+				this.#mouse1Pressed = false;
+				this.#mouse1Released = true;
+			} break;
+			case 2: { 
+				this.#mouse2Pressed = false;
+				this.#mouse2Released = true;
+			} break;
+			case 3: { 
+				this.#mouse3Pressed = false;
+				this.#mouse3Released = true;
+			} break;
+			case 4: { 
+				this.#mouse4Pressed = false;
+				this.#mouse4Released = true;
+			} break;
 		}
 	}
 
 	#mousedown(event: MouseEvent) {
 		switch(event.button) {
-			case 0: this.#mouse0 = true; break;
-			case 1: this.#mouse1 = true; break;
-			case 2: this.#mouse2 = true; break;
-			case 3: this.#mouse3 = true; break;
-			case 4: this.#mouse4 = true; break;
+			case 0: { 
+				this.#mouse0Pressed = true;
+				this.#mouse0Tapped = true;
+			} break;
+			case 1: { 
+				this.#mouse1Pressed = true;
+				this.#mouse1Tapped = true;
+			} break;
+			case 2: { 
+				this.#mouse2Pressed = true;
+				this.#mouse2Tapped = true;
+			} break;
+			case 3: { 
+				this.#mouse3Pressed = true;
+				this.#mouse3Tapped = true;
+			} break;
+			case 4: { 
+				this.#mouse4Pressed = true;
+				this.#mouse4Tapped = true;
+			} break;
 		}
+
 	}
 
 	/**
@@ -257,16 +323,38 @@ export class ControlHandler {
 		return mapping({
 			keysPressed: this.#keysPressed,
 			isKeyPressed: (key: KeyCodeStr) => {
-				const value = this.#keyStates.get(key);
+				const value = this.#keyPressedStates.get(key);
+				return (value === undefined) ? false : value;
+			},
+			isKeyTapped: (key: KeyCodeStr) => {
+				const value = this.#keyTappedStates.get(key);
+				return (value === undefined) ? false : value;
+			},
+			isKeyReleased: (key: KeyCodeStr) => {
+				const value = this.#keyReleasedStates.get(key);
 				return (value === undefined) ? false : value;
 			},
 			mouseX: mousePos.mouseX,
 			mouseY: mousePos.mouseY,
-			mouse0: this.#mouse0,
-			mouse1: this.#mouse1,
-			mouse2: this.#mouse2,
-			mouse3: this.#mouse3,
-			mouse4: this.#mouse4,
+
+			mouse0Pressed: this.#mouse0Pressed,
+			mouse1Pressed: this.#mouse1Pressed,
+			mouse2Pressed: this.#mouse2Pressed,
+			mouse3Pressed: this.#mouse3Pressed,
+			mouse4Pressed: this.#mouse4Pressed,
+
+			mouse0Tapped: this.#mouse0Tapped,
+			mouse1Tapped: this.#mouse1Tapped,
+			mouse2Tapped: this.#mouse2Tapped,
+			mouse3Tapped: this.#mouse3Tapped,
+			mouse4Tapped: this.#mouse4Tapped,
+
+			mouse0Released: this.#mouse0Released,
+			mouse1Released: this.#mouse1Released,
+			mouse2Released: this.#mouse2Released,
+			mouse3Released: this.#mouse3Released,
+			mouse4Released: this.#mouse4Released,
+
 		});
 	}
 
@@ -276,6 +364,27 @@ export class ControlHandler {
 	*/
 	tick() {
 		this.#keysTapped.clear();
+		
+		this.#keyTappedStates.forEach((_, key) => {
+			this.#keyTappedStates.set(key, false);
+		})
+
 		this.#keysReleased.clear();
+
+		this.#keyReleasedStates.forEach((_, key) => {
+			this.#keyReleasedStates.set(key, false);
+		});
+		
+		this.#mouse0Tapped = false;
+		this.#mouse1Tapped = false;
+		this.#mouse2Tapped = false;
+		this.#mouse3Tapped = false;
+		this.#mouse4Tapped = false;
+
+		this.#mouse0Released = false;
+		this.#mouse1Released = false;
+		this.#mouse2Released = false;
+		this.#mouse3Released = false;
+		this.#mouse4Released = false;
 	}
 }
