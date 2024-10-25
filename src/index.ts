@@ -124,6 +124,8 @@ export class ControlHandler {
 
 	// stores set of keycodes of buttons pressed currently
 	#keysPressed = new Set<KeyCodeStr>();
+	#keysTapped = new Set<KeyCodeStr>();
+	#keysReleased = new Set<KeyCodeStr>();
 
 	// stores methods/function that are used to retrieve translated control data
 	#controlStates = new Map<string, (data: MappingData) => boolean | number | number[]>();
@@ -183,12 +185,14 @@ export class ControlHandler {
 		const code = event.code as KeyCodeStr;
 		this.#keyStates.set(code, true);
 		this.#keysPressed.add(code);
+		this.#keysTapped.add(code);
 	}
 
 	#keyup(event: KeyboardEvent) {
 		const code = event.code as KeyCodeStr;
 		this.#keyStates.set(code, false);
 		this.#keysPressed.delete(code);
+		this.#keysReleased.add(code);
 	}
 
 	// Unsetting keyboard events when user tabs away from window
@@ -264,6 +268,14 @@ export class ControlHandler {
 			mouse3: this.#mouse3,
 			mouse4: this.#mouse4,
 		});
-		
+	}
+
+	/**
+	* Function which allows for is key tapped and is key released to work properlly. Ideally put
+	* at the end of your game loop
+	*/
+	tick() {
+		this.#keysTapped.clear();
+		this.#keysReleased.clear();
 	}
 }
