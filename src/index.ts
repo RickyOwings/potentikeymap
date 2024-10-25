@@ -110,6 +110,11 @@ interface MappingData {
 	isKeyPressed: (key: KeyCodeStr) => boolean,
 	mouseX: number | null,
 	mouseY: number | null,
+	mouse0: boolean,
+	mouse1: boolean,
+	mouse2: boolean,
+	mouse3: boolean,
+	mouse4: boolean,
 }
 
 export class ControlHandler {
@@ -129,6 +134,12 @@ export class ControlHandler {
 	#mouseX: number | null = null;
 	#mouseY: number | null = null;
 
+	#mouse0: boolean = false;
+	#mouse1: boolean = false;
+	#mouse2: boolean = false;
+	#mouse3: boolean = false;
+	#mouse4: boolean = false;
+
 	constructor(focusElement: HTMLElement | null = null) {
 
 		this.#focusElement = focusElement;
@@ -137,6 +148,8 @@ export class ControlHandler {
 		window.addEventListener("keyup", this.#keyup.bind(this));
 		window.addEventListener("blur", this.#onBlur.bind(this));
 		window.addEventListener("mousemove", this.#mousemove.bind(this));
+		window.addEventListener("mouseup", this.#mouseup.bind(this));
+		window.addEventListener("mousedown", this.#mousedown.bind(this));
 	}
 
 	#getMousePosition() {
@@ -199,6 +212,26 @@ export class ControlHandler {
 		this.#mouseY = event.clientY;
 	}
 
+	#mouseup(event: MouseEvent) {
+		switch(event.button) {
+			case 0: this.#mouse0 = false; break;
+			case 1: this.#mouse1 = false; break;
+			case 2: this.#mouse2 = false; break;
+			case 3: this.#mouse3 = false; break;
+			case 4: this.#mouse4 = false; break;
+		}
+	}
+
+	#mousedown(event: MouseEvent) {
+		switch(event.button) {
+			case 0: this.#mouse0 = true; break;
+			case 1: this.#mouse1 = true; break;
+			case 2: this.#mouse2 = true; break;
+			case 3: this.#mouse3 = true; break;
+			case 4: this.#mouse4 = true; break;
+		}
+	}
+
 	/**
 	 * Adds a control state, where you provide a handler function that returns either a boolean or number
 	 *
@@ -225,6 +258,11 @@ export class ControlHandler {
 			},
 			mouseX: mousePos.mouseX,
 			mouseY: mousePos.mouseY,
+			mouse0: this.#mouse0,
+			mouse1: this.#mouse1,
+			mouse2: this.#mouse2,
+			mouse3: this.#mouse3,
+			mouse4: this.#mouse4,
 		});
 		
 	}
