@@ -1,4 +1,4 @@
-enum KeyCode {
+enum ButtonCode {
 	Backspace = "Backspace",
 	Tab = "Tab",
 	Enter = "Enter",
@@ -101,50 +101,55 @@ enum KeyCode {
 	Backslash = "Backslash",
 	BracketRight = "BracketRight",
 	Quote = "Quote",
+	Mouse0 = "Mouse0",
+	Mouse1 = "Mouse1",
+	Mouse2 = "Mouse2",
+	Mouse3 = "Mouse3",
+	Mouse4 = "Mouse4",
 }
 
-type KeyCodeStr = `${KeyCode}`;
+type ButtonCodeStr = `${ButtonCode}`;
 
 interface MappingData {
-	keysPressed: Set<KeyCodeStr>, 
-	isKeyPressed: (key: KeyCodeStr) => boolean,
-	isKeyTapped: (key: KeyCodeStr) => boolean,
-	isKeyReleased: (key: KeyCodeStr) => boolean,
+	keysPressed: Set<ButtonCodeStr>, 
+	isButtonPressed: (key: ButtonCodeStr) => boolean,
+	isButtonTapped: (key: ButtonCodeStr) => boolean,
+	isButtonReleased: (key: ButtonCodeStr) => boolean,
 	mouseX: number | null,
 	mouseY: number | null,
 
-	mouse0Pressed: boolean,
-	mouse1Pressed: boolean,
-	mouse2Pressed: boolean,
-	mouse3Pressed: boolean,
-	mouse4Pressed: boolean,
+}
 
-	mouse0Tapped: boolean,
-	mouse1Tapped: boolean,
-	mouse2Tapped: boolean,
-	mouse3Tapped: boolean,
-	mouse4Tapped: boolean,
+type ButtonAndOr = ButtonCodeStr | ButtonCodeStr[];
 
-	mouse0Released: boolean,
-	mouse1Released: boolean,
-	mouse2Released: boolean,
-	mouse3Released: boolean,
-	mouse4Released: boolean,
-
-
+const traverseButtonOrAndArray = (data: MappingData, ...keys: ButtonAndOr[]) => {
+	for(const key of keys) {
+		if (Array.isArray(key)) {
+			let allPressed = true;
+			for(const k of key) {
+				if (!data.isButtonPressed(k)) {
+					allPressed = false; break;
+				}
+			}
+			if (allPressed) return true;
+		} else {
+			if (data.isButtonPressed(key)) return true;
+		}
+	}	
+	return false;
 }
 
 export class ControlHandler {
 
 	// stores boolean values for the keys pressed
-	#keyPressedStates = new Map<KeyCodeStr, boolean>();
-	#keyTappedStates = new Map<KeyCodeStr, boolean>();
-	#keyReleasedStates = new Map<KeyCodeStr, boolean>();
+	#buttonPressedStates = new Map<ButtonCodeStr, boolean>();
+	#buttonTappedStates = new Map<ButtonCodeStr, boolean>();
+	#buttonReleasedStates = new Map<ButtonCodeStr, boolean>();
 
 	// stores set of keycodes of buttons pressed currently
-	#keysPressed = new Set<KeyCodeStr>();
-	#keysTapped = new Set<KeyCodeStr>();
-	#keysReleased = new Set<KeyCodeStr>();
+	#buttonsPressed = new Set<ButtonCodeStr>();
+	#buttonsTapped = new Set<ButtonCodeStr>();
+	#buttonsReleased = new Set<ButtonCodeStr>();
 
 	// stores methods/function that are used to retrieve translated control data
 	#controlStates = new Map<string, (data: MappingData) => boolean | number | number[]>();
@@ -154,24 +159,6 @@ export class ControlHandler {
 	// definitive mouse position relative to window
 	#mouseX: number | null = null;
 	#mouseY: number | null = null;
-
-	#mouse0Pressed: boolean = false;
-	#mouse1Pressed: boolean = false;
-	#mouse2Pressed: boolean = false;
-	#mouse3Pressed: boolean = false;
-	#mouse4Pressed: boolean = false;
-
-	#mouse0Tapped: boolean = false;
-	#mouse1Tapped: boolean = false;
-	#mouse2Tapped: boolean = false;
-	#mouse3Tapped: boolean = false;
-	#mouse4Tapped: boolean = false;
-
-	#mouse0Released: boolean = false;
-	#mouse1Released: boolean = false;
-	#mouse2Released: boolean = false;
-	#mouse3Released: boolean = false;
-	#mouse4Released: boolean = false;
 
 	constructor(focusElement: HTMLElement | null = null) {
 
@@ -213,28 +200,28 @@ export class ControlHandler {
 	}
 
 	#keydown(event: KeyboardEvent) {
-		const code = event.code as KeyCodeStr;
-		this.#keyPressedStates.set(code, true);
-		this.#keysPressed.add(code);
+		const code = event.code as ButtonCodeStr;
+		this.#buttonPressedStates.set(code, true);
+		this.#buttonsPressed.add(code);
 
-		this.#keysTapped.add(code);
-		this.#keyTappedStates.set(code, true);
+		this.#buttonsTapped.add(code);
+		this.#buttonTappedStates.set(code, true);
 	}
 
 	#keyup(event: KeyboardEvent) {
-		const code = event.code as KeyCodeStr;
-		this.#keyPressedStates.set(code, false);
-		this.#keysPressed.delete(code);
+		const code = event.code as ButtonCodeStr;
+		this.#buttonPressedStates.set(code, false);
+		this.#buttonsPressed.delete(code);
 
-		this.#keysReleased.add(code);
-		this.#keyReleasedStates.set(code, true);
+		this.#buttonsReleased.add(code);
+		this.#buttonReleasedStates.set(code, true);
 	}
 
 	// Unsetting keyboard events when user tabs away from window
 	#onBlur() {
-		this.#keyPressedStates.forEach((pressed, key) => {
-			this.#keyPressedStates.set(key, false);
-			this.#keysPressed.clear();
+		this.#buttonPressedStates.forEach((pressed, key) => {
+			this.#buttonPressedStates.set(key, false);
+			this.#buttonsPressed.clear();
 		});
 		this.#mouseX = null;
 		this.#mouseY = null;
@@ -252,54 +239,24 @@ export class ControlHandler {
 	}
 
 	#mouseup(event: MouseEvent) {
-		switch(event.button) {
-			case 0: { 
-				this.#mouse0Pressed = false;
-				this.#mouse0Released = true;
-			} break;
-			case 1: { 
-				this.#mouse1Pressed = false;
-				this.#mouse1Released = true;
-			} break;
-			case 2: { 
-				this.#mouse2Pressed = false;
-				this.#mouse2Released = true;
-			} break;
-			case 3: { 
-				this.#mouse3Pressed = false;
-				this.#mouse3Released = true;
-			} break;
-			case 4: { 
-				this.#mouse4Pressed = false;
-				this.#mouse4Released = true;
-			} break;
-		}
+		const state = `Mouse${event.button}` as ButtonCode;
+
+		this.#buttonPressedStates.set(state, false);
+		this.#buttonsPressed.delete(state);
+
+		this.#buttonReleasedStates.set(state, true);
+		this.#buttonsReleased.add(state);
+
 	}
 
 	#mousedown(event: MouseEvent) {
-		switch(event.button) {
-			case 0: { 
-				this.#mouse0Pressed = true;
-				this.#mouse0Tapped = true;
-			} break;
-			case 1: { 
-				this.#mouse1Pressed = true;
-				this.#mouse1Tapped = true;
-			} break;
-			case 2: { 
-				this.#mouse2Pressed = true;
-				this.#mouse2Tapped = true;
-			} break;
-			case 3: { 
-				this.#mouse3Pressed = true;
-				this.#mouse3Tapped = true;
-			} break;
-			case 4: { 
-				this.#mouse4Pressed = true;
-				this.#mouse4Tapped = true;
-			} break;
-		}
+		const state = `Mouse${event.button}` as ButtonCode;
 
+		this.#buttonPressedStates.set(state, true);
+		this.#buttonsPressed.add(state);
+
+		this.#buttonTappedStates.set(state, true);
+		this.#buttonsTapped.add(state);
 	}
 
 	/**
@@ -309,6 +266,69 @@ export class ControlHandler {
 	 * */
 	addControlState(name: string, mapping: (data: MappingData) => boolean | number | number[]) {
 		this.#controlStates.set(name, mapping);
+	}
+
+	/** Adds a simple button that determines if buttons are being pressed. Providing 
+	 * button codes individually induces "or" logic. Passing them in an array induces "and"
+	 * logic. 
+	 *
+	 * If you wanted to set a keybind to be either w or space + up-arrow, heres how:
+	 * @example
+	 * addSimpleButton("Up Controls", "KeyW", ["ArrowUp", "Space"]);
+	 */
+	addSimpleButton(controlStateName: string, ...keys: ButtonAndOr[]) {
+		const mapping = (data: MappingData) => {
+			return traverseButtonOrAndArray(data, ...keys);	
+		}
+		this.#controlStates.set(controlStateName, mapping);
+	}
+
+	/** Adds a one dimenensional "axis". Follows the and or logic for the buttons you provide.
+	 *
+	 * @example
+	 * add1DAxis("Throttle", {pos: "KeyW", neg: "KeyS"})
+	 * // this would be 1 when W is pressed, and -1 when S is pressed. 0 when both
+	 */
+	add1DAxis(controlStateName: string, keys: {pos: ButtonAndOr[], neg: ButtonAndOr[]}) {
+		const mapping = (data: MappingData) => {
+			const pos = traverseButtonOrAndArray(data, ...keys.pos);
+			const neg = traverseButtonOrAndArray(data, ...keys.neg);
+			return +pos - +neg;
+		}
+		this.#controlStates.set(controlStateName, mapping);
+	}
+
+	/** Adds a movement controller. Follows the same "and" "or" logic that "addSimpleButton" does
+	 * for each direction provided. The control state will return an array containing deltaX and deltaY 
+	 * where right is subtracted by left, and up is subtracted by down
+	 *
+	 * @example
+	 * addControlVector("Movement", {left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"], up: ["ArrowUp", "KeyW"], down: ["ArrowDown", "KeyS"]});
+	 *
+	 * */
+	addMovementController(controlStateName: string, keys: {left: ButtonAndOr[], right: ButtonAndOr[], up: ButtonAndOr[], down: ButtonAndOr[]}) {
+		const mapping = (data: MappingData) => {
+			const left = traverseButtonOrAndArray(data, ...keys.left);
+			const right = traverseButtonOrAndArray(data, ...keys.right);
+			const up = traverseButtonOrAndArray(data, ...keys.up);
+			const down = traverseButtonOrAndArray(data, ...keys.down);
+			return [+right - +left, +up - +down];
+		}
+		this.#controlStates.set(controlStateName, mapping);
+	}
+
+	/** Adds a simple mouse handler. Depending if you set a focus element, the mouse position
+	 * will be set to NaN if offscreen. Be wary...
+	 * @example
+	 * addMouseHandler("MousePosition");
+	 */
+	addMouseHandler(controlStateName: string) {
+		const mapping = (data: MappingData) => {
+			const mouseX = (data.mouseX) ? data.mouseX : NaN;
+			const mouseY = (data.mouseY) ? data.mouseY : NaN;
+			return [mouseX, mouseY];
+		}
+		this.#controlStates.set(controlStateName, mapping);
 	}
 
 	/**
@@ -321,40 +341,21 @@ export class ControlHandler {
 		const mousePos = this.#getMousePosition();
 
 		return mapping({
-			keysPressed: this.#keysPressed,
-			isKeyPressed: (key: KeyCodeStr) => {
-				const value = this.#keyPressedStates.get(key);
+			keysPressed: this.#buttonsPressed,
+			isButtonPressed: (key: ButtonCodeStr) => {
+				const value = this.#buttonPressedStates.get(key);
 				return (value === undefined) ? false : value;
 			},
-			isKeyTapped: (key: KeyCodeStr) => {
-				const value = this.#keyTappedStates.get(key);
+			isButtonTapped: (key: ButtonCodeStr) => {
+				const value = this.#buttonTappedStates.get(key);
 				return (value === undefined) ? false : value;
 			},
-			isKeyReleased: (key: KeyCodeStr) => {
-				const value = this.#keyReleasedStates.get(key);
+			isButtonReleased: (key: ButtonCodeStr) => {
+				const value = this.#buttonReleasedStates.get(key);
 				return (value === undefined) ? false : value;
 			},
 			mouseX: mousePos.mouseX,
 			mouseY: mousePos.mouseY,
-
-			mouse0Pressed: this.#mouse0Pressed,
-			mouse1Pressed: this.#mouse1Pressed,
-			mouse2Pressed: this.#mouse2Pressed,
-			mouse3Pressed: this.#mouse3Pressed,
-			mouse4Pressed: this.#mouse4Pressed,
-
-			mouse0Tapped: this.#mouse0Tapped,
-			mouse1Tapped: this.#mouse1Tapped,
-			mouse2Tapped: this.#mouse2Tapped,
-			mouse3Tapped: this.#mouse3Tapped,
-			mouse4Tapped: this.#mouse4Tapped,
-
-			mouse0Released: this.#mouse0Released,
-			mouse1Released: this.#mouse1Released,
-			mouse2Released: this.#mouse2Released,
-			mouse3Released: this.#mouse3Released,
-			mouse4Released: this.#mouse4Released,
-
 		});
 	}
 
@@ -363,28 +364,17 @@ export class ControlHandler {
 	* at the end of your game loop
 	*/
 	tick() {
-		this.#keysTapped.clear();
+		this.#buttonsTapped.clear();
 		
-		this.#keyTappedStates.forEach((_, key) => {
-			this.#keyTappedStates.set(key, false);
+		this.#buttonTappedStates.forEach((_, key) => {
+			this.#buttonTappedStates.set(key, false);
 		})
 
-		this.#keysReleased.clear();
+		this.#buttonsReleased.clear();
 
-		this.#keyReleasedStates.forEach((_, key) => {
-			this.#keyReleasedStates.set(key, false);
+		this.#buttonReleasedStates.forEach((_, key) => {
+			this.#buttonReleasedStates.set(key, false);
 		});
 		
-		this.#mouse0Tapped = false;
-		this.#mouse1Tapped = false;
-		this.#mouse2Tapped = false;
-		this.#mouse3Tapped = false;
-		this.#mouse4Tapped = false;
-
-		this.#mouse0Released = false;
-		this.#mouse1Released = false;
-		this.#mouse2Released = false;
-		this.#mouse3Released = false;
-		this.#mouse4Released = false;
 	}
 }
