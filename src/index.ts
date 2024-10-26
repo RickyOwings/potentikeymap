@@ -122,22 +122,44 @@ interface MappingData {
 
 type ButtonAndOr = ButtonCodeStr | ButtonCodeStr[];
 
-const traverseButtonOrAndArray = (data: MappingData, ...keys: ButtonAndOr[]) => {
+type ButtonMapFn = (key: ButtonCodeStr) => boolean;
+
+const btnOrAndParse = (fn: ButtonMapFn, ...keys: ButtonAndOr[]) => {
 	for(const key of keys) {
 		if (Array.isArray(key)) {
 			let allPressed = true;
 			for(const k of key) {
-				if (!data.isButtonPressed(k)) {
+				if (!fn(k)) {
 					allPressed = false; break;
 				}
 			}
 			if (allPressed) return true;
 		} else {
-			if (data.isButtonPressed(key)) return true;
+			if (fn(key)) return true;
 		}
 	}	
 	return false;
 }
+
+const tappedBtnOrAndParse = (data: MappingData, ...keys: ButtonAndOr[]) => {
+	for(const key of keys) {
+		if (Array.isArray(key)) {
+			let allPressed = true;
+			for(let i = 0; i < key.length; i++) {
+				const k = key[i];
+				const fn = (i === key.length - 1) ? data.isButtonTapped : data.isButtonPressed;
+				if (!fn(k)) {
+					allPressed = false; break;
+				}
+			}
+			if (allPressed) return true;
+		} else {
+			if (data.isButtonTapped(key)) return true;
+		}
+	}
+	return false;
+}
+
 
 export class ControlHandler {
 
@@ -155,6 +177,7 @@ export class ControlHandler {
 	#controlStates = new Map<string, (data: MappingData) => boolean | number | number[]>();
 
 	#focusElement: HTMLElement | null;
+	#mousedOver: boolean = true;
 
 	// definitive mouse position relative to window
 	#mouseX: number | null = null;
@@ -170,6 +193,17 @@ export class ControlHandler {
 		window.addEventListener("mousemove", this.#mousemove.bind(this));
 		window.addEventListener("mouseup", this.#mouseup.bind(this));
 		window.addEventListener("mousedown", this.#mousedown.bind(this));
+
+		if (focusElement) {
+			this.#mousedOver = false;
+			focusElement.onmouseover = () => {
+				this.#mousedOver = true;
+			}
+			focusElement.onmouseout = () => {
+				this.#mousedOver = false;
+			}
+		}
+
 	}
 
 	#getMousePosition() {
@@ -186,7 +220,7 @@ export class ControlHandler {
 
 		if (
 			pos.mouseX < 0 || pos.mouseX > rect.width ||
-			pos.mouseY < 0 || pos.mouseY > rect.height
+			pos.mouseY < 0 || pos.mouseY > rect.height || !this.#mousedOver
 		) {
 			return {mouseX: null, mouseY: null};
 		}
@@ -225,6 +259,7 @@ export class ControlHandler {
 		});
 		this.#mouseX = null;
 		this.#mouseY = null;
+		this.#mousedOver = false;
 	}
 
 	#mousemove(event: MouseEvent) {
@@ -278,7 +313,14 @@ export class ControlHandler {
 	 */
 	addSimpleButton(controlStateName: string, ...keys: ButtonAndOr[]) {
 		const mapping = (data: MappingData) => {
-			return traverseButtonOrAndArray(data, ...keys);	
+			return btnOrAndParse(data.isButtonPressed, ...keys);	
+		}
+		this.#controlStates.set(controlStateName, mapping);
+	}
+
+	addTappedButton(controlStateName: string, ...keys: ButtonAndOr[]) {
+		const mapping = (data: MappingData) => {
+			return tappedBtnOrAndParse(data, ...keys);
 		}
 		this.#controlStates.set(controlStateName, mapping);
 	}
@@ -291,8 +333,8 @@ export class ControlHandler {
 	 */
 	add1DAxis(controlStateName: string, keys: {pos: ButtonAndOr[], neg: ButtonAndOr[]}) {
 		const mapping = (data: MappingData) => {
-			const pos = traverseButtonOrAndArray(data, ...keys.pos);
-			const neg = traverseButtonOrAndArray(data, ...keys.neg);
+			const pos = btnOrAndParse(data.isButtonPressed, ...keys.pos);
+			const neg = btnOrAndParse(data.isButtonPressed, ...keys.neg);
 			return +pos - +neg;
 		}
 		this.#controlStates.set(controlStateName, mapping);
@@ -308,10 +350,10 @@ export class ControlHandler {
 	 * */
 	addMovementController(controlStateName: string, keys: {left: ButtonAndOr[], right: ButtonAndOr[], up: ButtonAndOr[], down: ButtonAndOr[]}) {
 		const mapping = (data: MappingData) => {
-			const left = traverseButtonOrAndArray(data, ...keys.left);
-			const right = traverseButtonOrAndArray(data, ...keys.right);
-			const up = traverseButtonOrAndArray(data, ...keys.up);
-			const down = traverseButtonOrAndArray(data, ...keys.down);
+			const left = btnOrAndParse(data.isButtonPressed, ...keys.left);
+			const right = btnOrAndParse(data.isButtonPressed, ...keys.right);
+			const up = btnOrAndParse(data.isButtonPressed, ...keys.up);
+			const down = btnOrAndParse(data.isButtonPressed, ...keys.down);
 			return [+right - +left, +up - +down];
 		}
 		this.#controlStates.set(controlStateName, mapping);
