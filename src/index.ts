@@ -117,14 +117,14 @@ interface MappingData {
 	isButtonReleased: (key: ButtonCodeStr) => boolean,
 	mouseX: number | null,
 	mouseY: number | null,
-
+	wheel: number | null,
 }
 
 type ButtonAndOr = ButtonCodeStr | ButtonCodeStr[];
 
 type ButtonMapFn = (key: ButtonCodeStr) => boolean;
 
-const btnOrAndParse = (fn: ButtonMapFn, ...keys: ButtonAndOr[]) => {
+const pressedBtnOrAndParse = (fn: ButtonMapFn, ...keys: ButtonAndOr[]) => {
 	for(const key of keys) {
 		if (Array.isArray(key)) {
 			let allPressed = true;
@@ -161,6 +161,25 @@ const tappedBtnOrAndParse = (data: MappingData, ...keys: ButtonAndOr[]) => {
 }
 
 
+const releasedBtnOrAndParse = (data: MappingData, ...keys: ButtonAndOr[]) => {
+	for(const key of keys) {
+		if (Array.isArray(key)) {
+			let allPressed = true;
+			for(let i = 0; i < key.length; i++) {
+				const k = key[i];
+				const fn = (i === key.length - 1) ? data.isButtonReleased : data.isButtonPressed;
+				if (!fn(k)) {
+					allPressed = false; break;
+				}
+			}
+			if (allPressed) return true;
+		} else {
+			if (data.isButtonReleased(key)) return true;
+		}
+	}
+	return false;
+}
+
 export class ControlHandler {
 
 	// stores boolean values for the keys pressed
@@ -183,6 +202,8 @@ export class ControlHandler {
 	#mouseX: number | null = null;
 	#mouseY: number | null = null;
 
+	#wheel: number | null = null;
+
 	constructor(focusElement: HTMLElement | null = null) {
 
 		this.#focusElement = focusElement;
@@ -193,6 +214,7 @@ export class ControlHandler {
 		window.addEventListener("mousemove", this.#mousemove.bind(this));
 		window.addEventListener("mouseup", this.#mouseup.bind(this));
 		window.addEventListener("mousedown", this.#mousedown.bind(this));
+		window.addEventListener("wheel", this.#onwheel.bind(this));
 
 		if (focusElement) {
 			this.#mousedOver = false;
@@ -222,6 +244,7 @@ export class ControlHandler {
 			pos.mouseX < 0 || pos.mouseX > rect.width ||
 			pos.mouseY < 0 || pos.mouseY > rect.height || !this.#mousedOver
 		) {
+			this.#mousedOver = false;
 			return {mouseX: null, mouseY: null};
 		}
 
@@ -294,13 +317,20 @@ export class ControlHandler {
 		this.#buttonsTapped.add(state);
 	}
 
+	#onwheel(event: WheelEvent) {
+		if (!this.#mousedOver) return;
+	
+		this.#wheel = (event.deltaY < 0) ? -1 : (event.deltaY > 0) ? 1 : 0;
+	}
+
 	/**
 	 * Adds a control state, where you provide a handler function that returns either a boolean or number
 	 *
 	 * EX: providing a control state "STRAFE" that determines its value from whether KeyA or KeyD is pressed
 	 * */
-	addControlState(name: string, mapping: (data: MappingData) => boolean | number | number[]) {
-		this.#controlStates.set(name, mapping);
+	addControlState(controlStateName: string, mapping: (data: MappingData) => boolean | number | number[]): () => boolean | number | number[] | undefined {
+		this.#controlStates.set(controlStateName, mapping);
+		return () => mapping(this.#mappingData);
 	}
 
 	/** Adds a simple button that determines if buttons are being pressed. Providing 
@@ -311,11 +341,12 @@ export class ControlHandler {
 	 * @example
 	 * addSimpleButton("Up Controls", "KeyW", ["ArrowUp", "Space"]);
 	 */
-	addSimpleButton(controlStateName: string, ...keys: ButtonAndOr[]) {
+	addPressedButton(controlStateName: string, ...keys: ButtonAndOr[]) {
 		const mapping = (data: MappingData) => {
-			return btnOrAndParse(data.isButtonPressed, ...keys);	
+			return pressedBtnOrAndParse(data.isButtonPressed, ...keys);	
 		}
 		this.#controlStates.set(controlStateName, mapping);
+		return () => {return this.getControlValueBool(controlStateName)};
 	}
 
 	addTappedButton(controlStateName: string, ...keys: ButtonAndOr[]) {
@@ -323,6 +354,15 @@ export class ControlHandler {
 			return tappedBtnOrAndParse(data, ...keys);
 		}
 		this.#controlStates.set(controlStateName, mapping);
+		return () => {return this.getControlValueBool(controlStateName)};
+	}
+
+	addReleasedButton(controlStateName: string, ...keys: ButtonAndOr[]) {
+		const mapping = (data: MappingData) => {
+			return releasedBtnOrAndParse(data, ...keys);
+		}
+		this.#controlStates.set(controlStateName, mapping);
+		return () => {return this.getControlValueBool(controlStateName)};
 	}
 
 	/** Adds a one dimenensional "axis". Follows the and or logic for the buttons you provide.
@@ -333,11 +373,12 @@ export class ControlHandler {
 	 */
 	add1DAxis(controlStateName: string, keys: {pos: ButtonAndOr[], neg: ButtonAndOr[]}) {
 		const mapping = (data: MappingData) => {
-			const pos = btnOrAndParse(data.isButtonPressed, ...keys.pos);
-			const neg = btnOrAndParse(data.isButtonPressed, ...keys.neg);
+			const pos = pressedBtnOrAndParse(data.isButtonPressed, ...keys.pos);
+			const neg = pressedBtnOrAndParse(data.isButtonPressed, ...keys.neg);
 			return +pos - +neg;
 		}
 		this.#controlStates.set(controlStateName, mapping);
+		return () => this.getControlValueNumber(controlStateName);
 	}
 
 	/** Adds a movement controller. Follows the same "and" "or" logic that "addSimpleButton" does
@@ -350,13 +391,14 @@ export class ControlHandler {
 	 * */
 	addMovementController(controlStateName: string, keys: {left: ButtonAndOr[], right: ButtonAndOr[], up: ButtonAndOr[], down: ButtonAndOr[]}) {
 		const mapping = (data: MappingData) => {
-			const left = btnOrAndParse(data.isButtonPressed, ...keys.left);
-			const right = btnOrAndParse(data.isButtonPressed, ...keys.right);
-			const up = btnOrAndParse(data.isButtonPressed, ...keys.up);
-			const down = btnOrAndParse(data.isButtonPressed, ...keys.down);
+			const left = pressedBtnOrAndParse(data.isButtonPressed, ...keys.left);
+			const right = pressedBtnOrAndParse(data.isButtonPressed, ...keys.right);
+			const up = pressedBtnOrAndParse(data.isButtonPressed, ...keys.up);
+			const down = pressedBtnOrAndParse(data.isButtonPressed, ...keys.down);
 			return [+right - +left, +up - +down];
 		}
 		this.#controlStates.set(controlStateName, mapping);
+		return () => this.getControlValue2dNumber(controlStateName);
 	}
 
 	/** Adds a simple mouse handler. Depending if you set a focus element, the mouse position
@@ -371,18 +413,20 @@ export class ControlHandler {
 			return [mouseX, mouseY];
 		}
 		this.#controlStates.set(controlStateName, mapping);
+		return () => this.getControlValue2dNumber(controlStateName);
 	}
 
-	/**
-	* Gets the current state of a control state. Control states are created with "addControlState"
-	*/
-	getControlValue(name: string): boolean | number | number[] {
-		const mapping = this.#controlStates.get(name);
-		if (mapping === undefined) throw `Cannot access the control "${name}" since it hasn't been defined!`;
+	addWheelHandler(controlStateName: string) {
+		const mapping = (data: MappingData) => {
+			return (data.wheel) ? data.wheel : 0;
+		}
+		this.#controlStates.set(controlStateName, mapping);
+		return () => this.getControlValueNumber(controlStateName);
+	}
 
+	get #mappingData(): MappingData {
 		const mousePos = this.#getMousePosition();
-
-		return mapping({
+		return {
 			keysPressed: this.#buttonsPressed,
 			isButtonPressed: (key: ButtonCodeStr) => {
 				const value = this.#buttonPressedStates.get(key);
@@ -398,7 +442,40 @@ export class ControlHandler {
 			},
 			mouseX: mousePos.mouseX,
 			mouseY: mousePos.mouseY,
-		});
+			wheel: this.#wheel
+		}
+	}
+
+	/**
+	* Gets the current state of a control state. Control states are created with "addControlState"
+	*/
+	getControlValue(name: string): boolean | number | number[] | undefined {
+		const mapping = this.#controlStates.get(name);
+
+		if (!mapping) return undefined;
+
+		const mousePos = this.#getMousePosition();
+
+		return mapping(this.#mappingData);
+	}
+
+	getControlValueBool(name: string): boolean | undefined {
+		const value = this.getControlValue(name)
+		if (typeof value === 'boolean') return value;
+		return undefined;
+	}
+
+	getControlValueNumber(name: string): number | undefined {
+		const value = this.getControlValue(name);
+		if (typeof value === 'boolean') return +value;
+		if (typeof value !== 'number') return undefined;
+		return value;
+	}
+
+	getControlValue2dNumber(name: string): number[] | undefined {
+		const value = this.getControlValue(name);
+		if (!Array.isArray(value)) return undefined;
+		return value;
 	}
 
 	/**
@@ -417,6 +494,6 @@ export class ControlHandler {
 		this.#buttonReleasedStates.forEach((_, key) => {
 			this.#buttonReleasedStates.set(key, false);
 		});
-		
+		this.#wheel = 0;
 	}
 }
