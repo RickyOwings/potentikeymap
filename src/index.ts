@@ -198,6 +198,16 @@ export class ControlHandler {
 	#focusElement: HTMLElement | null;
 	#mousedOver: boolean = true;
 
+	#isBlurred = false;
+
+	get isBlurred () {
+		return this.#isBlurred;
+	}
+
+	get isFocused () {
+		return !this.#isBlurred;
+	}
+
 	// definitive mouse position relative to window
 	#mouseX: number | null = null;
 	#mouseY: number | null = null;
@@ -211,6 +221,7 @@ export class ControlHandler {
 		window.addEventListener("keydown", this.#keydown.bind(this));
 		window.addEventListener("keyup", this.#keyup.bind(this));
 		window.addEventListener("blur", this.#onBlur.bind(this));
+		window.addEventListener("focus", this.#onFocus.bind(this))
 		window.addEventListener("mousemove", this.#mousemove.bind(this));
 		window.addEventListener("mouseup", this.#mouseup.bind(this));
 		window.addEventListener("mousedown", this.#mousedown.bind(this));
@@ -280,9 +291,15 @@ export class ControlHandler {
 			this.#buttonPressedStates.set(key, false);
 			this.#buttonsPressed.clear();
 		});
+
 		this.#mouseX = null;
 		this.#mouseY = null;
 		this.#mousedOver = false;
+		this.#isBlurred = true;
+	}
+
+	#onFocus() {
+		this.#isBlurred = false;
 	}
 
 	#mousemove(event: MouseEvent) {
