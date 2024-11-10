@@ -110,15 +110,16 @@ enum ButtonCode {
 
 type ButtonCodeStr = `${ButtonCode}`;
 
-interface MappingData {
-	keysPressed: Set<ButtonCodeStr>, 
+/*interface MappingData {
+	buttonsPressed: Set<ButtonCodeStr>, 
 	isButtonPressed: (key: ButtonCodeStr) => boolean,
 	isButtonTapped: (key: ButtonCodeStr) => boolean,
 	isButtonReleased: (key: ButtonCodeStr) => boolean,
 	mouseX: number | null,
 	mouseY: number | null,
 	wheel: number | null,
-}
+}*/
+type MappingData = ControlHandler['mappingData']
 
 type ButtonAndOr = ButtonCodeStr | ButtonCodeStr[];
 
@@ -182,15 +183,63 @@ const releasedBtnOrAndParse = (data: MappingData, ...keys: ButtonAndOr[]) => {
 
 export class ControlHandler {
 
+	#inputBlockingElements = new Array<HTMLElement>();
+	#inputBlockerStates = new Array<boolean>();
+
 	// stores boolean values for the keys pressed
 	#buttonPressedStates = new Map<ButtonCodeStr, boolean>();
+
+	private get buttonPressedStates () {
+//		if (this.doInputWithoutMouse) return this.#buttonPressedStates;
+//		if (!this.#mousedOver) return new Map<ButtonCodeStr, boolean>();
+		if (this.#inputblockersActive) return new Map<ButtonCodeStr, boolean>();
+		return this.#buttonPressedStates;
+	}
+	
 	#buttonTappedStates = new Map<ButtonCodeStr, boolean>();
+
+	private get buttonTappedStates () {
+//		if (this.doInputWithoutMouse) return this.#buttonTappedStates;
+		//if (!this.#mousedOver) return new Map<ButtonCodeStr, boolean>();
+		if (this.#inputblockersActive) return new Map<ButtonCodeStr, boolean>();
+		return this.#buttonTappedStates;
+	}
+
 	#buttonReleasedStates = new Map<ButtonCodeStr, boolean>();
+
+	private get buttonReleasedStates () {
+		//if (this.doInputWithoutMouse) return this.#buttonReleasedStates;
+		//if (!this.#mousedOver) return new Map<ButtonCodeStr, boolean>();
+		if (this.#inputblockersActive) return new Map<ButtonCodeStr, boolean>();
+		return this.#buttonReleasedStates;
+	}
 
 	// stores set of keycodes of buttons pressed currently
 	#buttonsPressed = new Set<ButtonCodeStr>();
+	private get buttonsPressed () {
+		//if (this.doInputWithoutMouse) return this.#buttonsPressed;
+		//if (!this.#mousedOver) return new Set<ButtonCodeStr>();
+		if (this.#inputblockersActive) return new Set<ButtonCodeStr>();
+		return this.#buttonsPressed;
+	}
+
 	#buttonsTapped = new Set<ButtonCodeStr>();
+
+	private get buttonsTapped() {
+		//if (this.doInputWithoutMouse) return this.#buttonsTapped;
+		//if (!this.#mousedOver) return new Set<ButtonCodeStr>();
+		if (this.#inputblockersActive) return new Set<ButtonCodeStr>();
+		return this.#buttonsTapped;
+	}
+
 	#buttonsReleased = new Set<ButtonCodeStr>();
+
+	private get buttonsReleased() {
+		//if (this.doInputWithoutMouse) return this.#buttonsReleased;
+		//if (!this.#mousedOver) return new Set<ButtonCodeStr>();
+		if (this.#inputblockersActive) return new Set<ButtonCodeStr>();
+		return this.#buttonsReleased;
+	}
 
 	// stores methods/function that are used to retrieve translated control data
 	#controlStates = new Map<string, (data: MappingData) => boolean | number | number[]>();
@@ -214,6 +263,8 @@ export class ControlHandler {
 
 	#wheel: number | null = null;
 
+	doInputWithoutMouse = true;
+
 	constructor(focusElement: HTMLElement | null = null) {
 
 		this.#focusElement = focusElement;
@@ -231,12 +282,24 @@ export class ControlHandler {
 			this.#mousedOver = false;
 			focusElement.onmouseover = () => {
 				this.#mousedOver = true;
+				this.#clearStates();
 			}
 			focusElement.onmouseout = () => {
 				this.#mousedOver = false;
+				this.#clearStates();
 			}
 		}
 
+	}
+
+	#clearStates() {
+		this.#buttonPressedStates.clear();
+		this.#buttonTappedStates.clear();
+		this.#buttonReleasedStates.clear();
+
+		this.#buttonsTapped.clear();
+		this.#buttonsPressed.clear();
+		this.#buttonsReleased.clear();
 	}
 
 	#getMousePosition() {
@@ -347,7 +410,7 @@ export class ControlHandler {
 	 * */
 	addControlState(controlStateName: string, mapping: (data: MappingData) => boolean | number | number[]): () => boolean | number | number[] | undefined {
 		this.#controlStates.set(controlStateName, mapping);
-		return () => mapping(this.#mappingData);
+		return () => mapping(this.mappingData);
 	}
 
 	/** Adds a simple button that determines if buttons are being pressed. Providing 
@@ -441,20 +504,22 @@ export class ControlHandler {
 		return () => this.getControlValueNumber(controlStateName);
 	}
 
-	get #mappingData(): MappingData {
+	private get mappingData() {
 		const mousePos = this.#getMousePosition();
 		return {
-			keysPressed: this.#buttonsPressed,
+			buttonsPressed: this.buttonsPressed,
+			buttonsTapped: this.buttonsTapped,
+			buttonsReleased: this.buttonsReleased,
 			isButtonPressed: (key: ButtonCodeStr) => {
-				const value = this.#buttonPressedStates.get(key);
+				const value = this.buttonPressedStates.get(key);
 				return (value === undefined) ? false : value;
 			},
 			isButtonTapped: (key: ButtonCodeStr) => {
-				const value = this.#buttonTappedStates.get(key);
+				const value = this.buttonTappedStates.get(key);
 				return (value === undefined) ? false : value;
 			},
 			isButtonReleased: (key: ButtonCodeStr) => {
-				const value = this.#buttonReleasedStates.get(key);
+				const value = this.buttonReleasedStates.get(key);
 				return (value === undefined) ? false : value;
 			},
 			mouseX: mousePos.mouseX,
@@ -473,7 +538,7 @@ export class ControlHandler {
 
 		const mousePos = this.#getMousePosition();
 
-		return mapping(this.#mappingData);
+		return mapping(this.mappingData);
 	}
 
 	getControlValueBool(name: string): boolean | undefined {
@@ -513,4 +578,30 @@ export class ControlHandler {
 		});
 		this.#wheel = 0;
 	}
+
+	get #inputblockersActive () {
+		for(const state of this.#inputBlockerStates) {
+			if (state) return state;
+		}	
+		return false;
+	}
+
+	addInputBlockingElement(element: HTMLElement) {
+		const index = this.#inputBlockingElements.length;
+		this.#inputBlockingElements.push(element);	
+		this.#inputBlockerStates.push(false);
+
+		this.#inputBlockingElements[index].onmouseover = () => {
+
+			this.#clearStates();
+			this.#inputBlockerStates[index] = true;
+		}
+
+		this.#inputBlockingElements[index].onmouseout = () => {
+			this.#clearStates();
+			this.#inputBlockerStates[index] = false;
+		}
+
+	}
+
 }
