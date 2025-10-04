@@ -14,7 +14,7 @@ const controlHandler = new ControlHandler(canvas/* Whatever element you want to 
 
 In your update function, invoke the tick function at the end to ensure certain variables are updated:
 
-```
+```Typescript
 function someGameUpdateFunction(deltaTime: number) {
     // bunch of update logic
     controlHandler.tick();
@@ -42,7 +42,7 @@ const isJumping = controlHandler.addPressedButton("jump", "Space");
 
 When we add a pressed button, it returns a function that returns a boolean based off of wether it is pressed or not:
 
-```
+```Typescript
 if (isJumping()) {
     player.y += Infinity;
 }
