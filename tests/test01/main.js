@@ -13,7 +13,7 @@ const controlHandler = new ControlHandler(canvas);
 controlHandler.addControlState("strafe", (data) => {
 	{ // input set div
 		let str = "";
-		data.keysPressed.forEach((button) => {
+		data.buttonsPressed.forEach((button) => {
 			str += button + " ";
 		});
 
@@ -23,8 +23,8 @@ controlHandler.addControlState("strafe", (data) => {
 	{ // input mouse position div
 		mousePostionDiv.innerHTML = `Mouse X:${data.mouseX}, Mouse Y:${data.mouseY}`
 	}
-	const left = data.isKeyPressed("KeyA");
-	const right = data.isKeyPressed("KeyD");
+	const left = data.isButtonPressed("KeyA");
+	const right = data.isButtonPressed("KeyD");
 	return +right - +left;
 });
 

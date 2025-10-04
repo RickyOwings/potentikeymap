@@ -12,5 +12,8 @@
 	},
 	"author": "",
 	"license": "ISC",
-	"description": "A library for handling input devices for games"
+	"description": "A library for handling input devices for games",
+	"dependencies": {
+		"serve": "^14.2.5"
+	}
 }

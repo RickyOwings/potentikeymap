@@ -1,4 +1,4 @@
-declare enum KeyCode {
+declare enum ButtonCode {
     Backspace = "Backspace",
     Tab = "Tab",
     Enter = "Enter",
@@ -100,22 +100,89 @@ declare enum KeyCode {
     BracketLeft = "BracketLeft",
     Backslash = "Backslash",
     BracketRight = "BracketRight",
-    Quote = "Quote"
+    Quote = "Quote",
+    Mouse0 = "Mouse0",
+    Mouse1 = "Mouse1",
+    Mouse2 = "Mouse2",
+    Mouse3 = "Mouse3",
+    Mouse4 = "Mouse4"
 }
-type KeyCodeStr = `${KeyCode}`;
-interface MappingData {
-    keysPressed: Set<KeyCodeStr>;
-    isKeyPressed: (key: KeyCodeStr) => boolean;
-    mouseX: number | null;
-    mouseY: number | null;
-}
+type ButtonCodeStr = `${ButtonCode}`;
+type MappingData = ControlHandler['mappingData'];
+type ButtonAndOr = ButtonCodeStr | ButtonCodeStr[];
 export declare class ControlHandler {
     #private;
+    private get buttonPressedStates();
+    private get buttonTappedStates();
+    private get buttonReleasedStates();
+    private get buttonsPressed();
+    private get buttonsTapped();
+    private get buttonsReleased();
+    get isBlurred(): boolean;
+    get isFocused(): boolean;
+    doInputWithoutMouse: boolean;
     constructor(focusElement?: HTMLElement | null);
     /**
-     * Adds a control state with conditional
+     * Adds a control state, where you provide a handler function that returns either a boolean or number
+     *
+     * EX: providing a control state "STRAFE" that determines its value from whether KeyA or KeyD is pressed
      * */
-    addControlState(name: string, mapping: (data: MappingData) => boolean | number): void;
-    getControlValue(name: string): boolean | number;
+    addControlState(controlStateName: string, mapping: (data: MappingData) => boolean | number | number[]): () => boolean | number | number[] | undefined;
+    /** Adds a simple button that determines if buttons are being pressed. Providing
+     * button codes individually induces "or" logic. Passing them in an array induces "and"
+     * logic.
+     *
+     * If you wanted to set a keybind to be either w or space + up-arrow, heres how:
+     * @example
+     * addSimpleButton("Up Controls", "KeyW", ["ArrowUp", "Space"]);
+     */
+    addPressedButton(controlStateName: string, ...keys: ButtonAndOr[]): () => boolean;
+    addTappedButton(controlStateName: string, ...keys: ButtonAndOr[]): () => boolean;
+    addReleasedButton(controlStateName: string, ...keys: ButtonAndOr[]): () => boolean;
+    /** Adds a one dimenensional "axis". Follows the and or logic for the buttons you provide.
+     *
+     * @example
+     * add1DAxis("Throttle", {pos: "KeyW", neg: "KeyS"})
+     * // this would be 1 when W is pressed, and -1 when S is pressed. 0 when both
+     */
+    add1DAxis(controlStateName: string, keys: {
+        pos: ButtonAndOr[];
+        neg: ButtonAndOr[];
+    }): () => number;
+    /** Adds a movement controller. Follows the same "and" "or" logic that "addSimpleButton" does
+     * for each direction provided. The control state will return an array containing deltaX and deltaY
+     * where right is subtracted by left, and up is subtracted by down
+     *
+     * @example
+     * addControlVector("Movement", {left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"], up: ["ArrowUp", "KeyW"], down: ["ArrowDown", "KeyS"]});
+     *
+     * */
+    addMovementController(controlStateName: string, keys: {
+        left: ButtonAndOr[];
+        right: ButtonAndOr[];
+        up: ButtonAndOr[];
+        down: ButtonAndOr[];
+    }): () => number[];
+    /** Adds a simple mouse handler. Depending if you set a focus element, the mouse position
+     * will be set to NaN if offscreen. Be wary...
+     * @example
+     * addMouseHandler("MousePosition");
+     */
+    addMouseHandler(controlStateName: string): () => number[];
+    addWheelHandler(controlStateName: string): () => number;
+    private get mappingData();
+    /**
+    * Gets the current state of a control state. Control states are created with "addControlState"
+    */
+    getControlValue(name: string): boolean | number | number[];
+    getControlValueBool(name: string): boolean;
+    getControlValueNumber(name: string): number;
+    getControlValue2dNumber(name: string): number[];
+    /**
+    * Function which allows for is key tapped and is key released to work properlly. Ideally put
+    * at the end of your game loop
+    */
+    tick(): void;
+    addInputBlockingElement(element: HTMLElement): void;
 }
 export {};

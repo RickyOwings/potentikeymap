@@ -531,32 +531,35 @@ export class ControlHandler {
 	/**
 	* Gets the current state of a control state. Control states are created with "addControlState"
 	*/
-	getControlValue(name: string): boolean | number | number[] | undefined {
+	getControlValue(name: string): boolean | number | number[] {
 		const mapping = this.#controlStates.get(name);
 
-		if (!mapping) return undefined;
+		if (!mapping) 
+      throw new Error(`[PotentiKeyMap]: ${name} control state doesn't exist`);
 
-		const mousePos = this.#getMousePosition();
+		/*const mousePos = */this.#getMousePosition();
 
 		return mapping(this.mappingData);
 	}
 
-	getControlValueBool(name: string): boolean | undefined {
+	getControlValueBool(name: string): boolean {
 		const value = this.getControlValue(name)
 		if (typeof value === 'boolean') return value;
-		return undefined;
+    throw new Error(`[PotentiKeyMap]: ${name} control state doesn't exist or is wrong type`);
 	}
 
-	getControlValueNumber(name: string): number | undefined {
+	getControlValueNumber(name: string): number {
 		const value = this.getControlValue(name);
 		if (typeof value === 'boolean') return +value;
-		if (typeof value !== 'number') return undefined;
+		if (typeof value !== 'number') 
+      throw new Error(`[PotentiKeyMap]: ${name} control state doesn't exist or is wrong type`);
 		return value;
 	}
 
-	getControlValue2dNumber(name: string): number[] | undefined {
+	getControlValue2dNumber(name: string): number[] {
 		const value = this.getControlValue(name);
-		if (!Array.isArray(value)) return undefined;
+		if (!Array.isArray(value)) 
+      throw new Error(`[PotentiKeyMap]: ${name} control state doesn't exist or is wrong type`);
 		return value;
 	}
 
@@ -603,5 +606,4 @@ export class ControlHandler {
 		}
 
 	}
-
 }
